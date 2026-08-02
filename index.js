@@ -6,6 +6,7 @@ import cookieParser from 'cookie-parser';
 import morgan from 'morgan';
 import helmet from 'helmet';
 import connectDB from './config/connectDB.js';
+import userRouter from './route/user.route.js';
 
 const app = express();
 app.use(cors());
@@ -13,7 +14,7 @@ app.options('*', cors());
 
 app.use(express.json());
 app.use(cookieParser());
-app.use(morgan("dev"));
+app.use(morgan("dev")); 
 app.use(helmet({
     crossOriginEmbedderPolicy : false
 }))
@@ -23,6 +24,8 @@ app.get("/", (req, res) => {
     // Server to client
     res.send("Server is running on the 8000 port")
 })
+
+app.use("/api/user", userRouter);
 
 connectDB().then(() => {
     app.listen(process.env.PORT, () => {
