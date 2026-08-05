@@ -9,6 +9,8 @@ import connectDB from './config/connectDB.js';
 import userRouter from './route/user.route.js';
 import categoryRouter from './route/category.route.js';
 import productRouter from './route/product.route.js';
+import cartRouter from './route/cart.route.js';
+import myListRouter from './route/myList.route.js';
 
 const app = express();
 app.use(cors());
@@ -30,6 +32,8 @@ app.get("/", (req, res) => {
 app.use("/api/user", userRouter);
 app.use('/api/category', categoryRouter);
 app.use('/api/product', productRouter);
+app.use('/api/cart', cartRouter)
+app.use('/api/myList', myListRouter);
 
 connectDB().then(() => {
     app.listen(process.env.PORT, () => {
