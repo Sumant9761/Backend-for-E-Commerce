@@ -56,7 +56,7 @@ export async function registerUserController(req, res) {
     // Send verification email
     const verifyEmail = await sendEmailFun({
       to: email,
-      subject: "Verify email from Ecommerce App",
+      subject: "Verify OTP from Ecommerce App",
       text: "",
       html: VerificationEmail(name, verifyCode),
     });
@@ -383,7 +383,13 @@ export async function updateUserDetails(req, res) {
       message: "User updated successfully",
       error: false,
       success: true,
-      user: updateUser,
+      user: {
+        name: updateUser?.name,
+        _id: updateUser?._id,
+        email: updateUser?.email,
+        mobile: updateUser?.mobile,
+        avatar: updateUser?.avatar,
+      },
     });
   } catch (error) {
     return res.status(500).json({
@@ -486,7 +492,6 @@ export async function verifyForgotPasswordOtp(req, res) {
       error: false,
       success: true,
     });
-
   } catch (error) {
     return res.status(500).json({
       message: error.message || error,
@@ -496,7 +501,6 @@ export async function verifyForgotPasswordOtp(req, res) {
   }
 }
 
-
 //Reset Password
 export async function resetPassword(req, res) {
   try {
@@ -505,7 +509,7 @@ export async function resetPassword(req, res) {
     // Validate inputs
     if (!email) {
       return res.status(400).json({
-        message: "Email not available",
+        message: "Email is not available",
         error: true,
         success: false,
       });
@@ -532,7 +536,7 @@ export async function resetPassword(req, res) {
     const user = await Usermodel.findOne({ email });
     if (!user) {
       return res.status(400).json({
-        message: "Email not available",
+        message: "Email is not available",
         error: true,
         success: false,
       });
@@ -554,7 +558,6 @@ export async function resetPassword(req, res) {
       error: false,
       success: true,
     });
-    
   } catch (error) {
     return res.status(500).json({
       message: error.message || error,
@@ -564,12 +567,10 @@ export async function resetPassword(req, res) {
   }
 }
 
-
 export async function refreshToken(req, res) {
   try {
     const refreshToken =
-      req.cookies.refreshToken ||
-      req?.headers?.authorization?.split(" ")[1]; // [bearer token]
+      req.cookies.refreshToken || req?.headers?.authorization?.split(" ")[1]; // [bearer token]
     if (!refreshToken) {
       return res.status(401).json({
         message: "Invalid Token",
@@ -578,7 +579,10 @@ export async function refreshToken(req, res) {
       });
     }
 
-    const verifyToken = await jwt.verify(refreshToken, process.env.SECRET_KEY_REFRESH_TOKEN);
+    const verifyToken = await jwt.verify(
+      refreshToken,
+      process.env.SECRET_KEY_REFRESH_TOKEN,
+    );
     if (!verifyToken) {
       return res.status(401).json({
         message: "Token is expired",
@@ -614,14 +618,15 @@ export async function refreshToken(req, res) {
   }
 }
 
-
 //Get login user details
 export async function userDetails(req, res) {
   try {
     const userId = req.userId;
 
-    const user = await Usermodel.findById(userId).select("-password -refresh_token");
-    //Here I don't need password and refresh_token so i minus of both
+    const user = await Usermodel.findById(userId)
+      .select("-password -refresh_token")
+      .populate("address_details");
+  
     return res.json({
       message: "User details",
       data: user,

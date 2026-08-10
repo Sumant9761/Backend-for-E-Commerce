@@ -220,7 +220,11 @@ export async function removeImageFromCloudinary(req, res) {
       },
     );
     if (response) {
-      res.status(200).send(response);
+      return res.status(200).json({
+        message: "Image deleted successfully",
+        error: false,
+        success: true
+      })
     }
   }
 }
