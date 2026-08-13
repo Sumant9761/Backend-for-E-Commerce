@@ -4,11 +4,11 @@ const productSchema = mongoose.Schema(
   {
     name: {
       type: String,
-      required: true
+      required: true,
     },
     description: {
       type: String,
-      required: true
+      required: true,
     },
     images: [
       {
@@ -18,52 +18,51 @@ const productSchema = mongoose.Schema(
     ],
     brand: {
       type: String,
-      default: ""
+      default: "",
     },
     price: {
       type: Number,
-      default: 0
+      default: 0,
     },
     oldPrice: {
       type: Number,
-      default: 0
+      default: 0,
     },
     catName: {
       type: String,
-      default: ""
+      default: "",
     },
     catId: {
       type: String,
-      default: ""
+      default: "",
     },
     subCatId: {
       type: String,
-      default: ""
+      default: "",
     },
     subCat: {
       type: String,
-      default: ""
+      default: "",
     },
     thirdsubCat: {
       type: String,
-      default: ""
+      default: "",
     },
     thirdsubCatId: {
       type: String,
-      default: ""
+      default: "",
     },
-    // category: {
-    //   type: mongoose.Schema.Types.ObjectId,
-    //   ref: "Category",
-    //   required: true
-    // },
+    category: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Category",
+    },
     countInStock: {
       type: Number,
-      required: true
+      required: true,
     },
     rating: {
       type: Number,
-      default: 0
+      default: 0,
     },
     isFeatured: {
       type: Boolean,
@@ -71,7 +70,11 @@ const productSchema = mongoose.Schema(
     },
     discount: {
       type: Number,
-      required: true
+      required: true,
+    },
+    sale: {
+      type: Number,
+      default: 0,
     },
     productRam: [
       {
@@ -91,14 +94,24 @@ const productSchema = mongoose.Schema(
         default: null,
       },
     ],
-    dateCreated: {
+    bannerImages: [
+      {
         type: String,
-        default: Date.now,
-    }
+        required: true,
+      },
+    ],
+    bannerTitleName: {
+      type: String,
+      required: true,
+    },
+    isDisplayOnHomeBanner: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 const ProductModel = mongoose.model("Product", productSchema);

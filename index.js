@@ -12,6 +12,9 @@ import productRouter from './route/product.route.js';
 import cartRouter from './route/cart.route.js';
 import myListRouter from './route/myList.route.js';
 import addressRouter from './route/address.route.js';
+import homeSlidesRouter from './route/homeSlider.route.js';
+import bannerV1Router from './route/bannerV1.route.js';
+import blogRouter from './route/blog.route.js';
 
 const app = express();
 app.use(cors());
@@ -36,6 +39,9 @@ app.use('/api/product', productRouter);
 app.use('/api/cart', cartRouter)
 app.use('/api/myList', myListRouter);
 app.use('/api/address', addressRouter);
+app.use("/api/homeSlides", homeSlidesRouter);
+app.use("/api/bannerV1", bannerV1Router);
+app.use("/api/blog", blogRouter);
 
 connectDB().then(() => {
     app.listen(process.env.PORT, () => {

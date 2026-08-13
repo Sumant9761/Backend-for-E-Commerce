@@ -116,7 +116,7 @@ export async function getCategories(req, res) {
       data: rootCategories,
     });
   } catch (error) {
-    return response.status(500).json({
+    return res.status(500).json({
       message: error.message || error,
       error: true,
       success: false,

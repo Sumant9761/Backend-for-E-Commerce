@@ -1,4 +1,7 @@
 import ProductModel from "../models/product.modal.js";
+import ProductRAMSModel from "../models/productRAMS.js";
+import ProductWeightModel from "../models/productWeight.js";
+import ProductSizeModel from "../models/productSize.js";
 
 import { v2 as cloudinary } from "cloudinary";
 import fs from "fs";
@@ -47,6 +50,42 @@ export async function uploadImages(req, res) {
   }
 }
 
+var bannerImage = [];
+export async function uploadBannerImages(req, res) {
+  try {
+    bannerImage = [];
+
+    const image = req.files;
+
+    const options = {
+      use_filename: true,
+      unique_filename: false,
+      overwrite: false,
+    };
+
+    for (let i = 0; i < image?.length; i++) {
+      const img = await cloudinary.uploader.upload(
+        image[i].path,
+        options,
+        function (error, result) {
+          bannerImage.push(result.secure_url);
+          fs.unlinkSync(`uploads/${image[i].filename}`);
+        },
+      );
+    }
+
+    return res.status(200).json({
+      images: bannerImage,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: error.message || error,
+      error: true,
+      success: false,
+    });
+  }
+}
+
 //Create Product
 export async function createProduct(req, res) {
   try {
@@ -54,10 +93,14 @@ export async function createProduct(req, res) {
       name: req.body.name,
       description: req.body.description,
       images: imagesArr,
+      bannerImages: bannerImage,
+      bannerTitleName: req.body.bannerTitleName,
+      isDisplayOnHomeBanner: req.body.isDisplayOnHomeBanner,
       brand: req.body.brand,
       price: req.body.price,
       oldPrice: req.body.oldPrice,
       catName: req.body.catName,
+      category: req.body.category,
       catId: req.body.catId,
       subCatId: req.body.subCatId,
       subCat: req.body.subCat,
@@ -665,6 +708,57 @@ export async function deleteProduct(req, res) {
   });
 }
 
+//delete multiple Product
+export async function deleteMultipleProduct(req, res) {
+  const { ids } = req.body;
+
+  if (!ids || !Array.isArray(ids)) {
+    return res.status(400).json({
+      success: false,
+      error: true,
+      message: "No IDs provided",
+    });
+  }
+
+  // Delete images from Cloudinary for each product
+  for (let i = 0; i < ids?.length; i++) {
+    const product = await ProductModel.findById(ids[i]);
+
+    const images = product.images;
+
+    let img = "";
+
+    for (img of images) {
+      const imageUrl = img;
+      const urlArr = imageUrl.split("/");
+      const image = urlArr[urlArr.length - 1];
+
+      const imageName = image.split(".")[0];
+
+      if (imageName) {
+        cloudinary.uploader.destroy(imageName, (error, result) => {
+          //console.log(error, result);
+        });
+      }
+    }
+  }
+
+  try {
+    await ProductModel.deleteMany({ _id: { $in: ids } });
+    return res.status(200).json({
+      message: "Product delete successfully",
+      error: false,
+      success: true,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: error.message || error,
+      error: true,
+      success: false,
+    });
+  }
+}
+
 //get single product
 export async function getSingleProduct(req, res) {
   try {
@@ -721,29 +815,34 @@ export async function updateProduct(req, res) {
     const product = await ProductModel.findByIdAndUpdate(
       req.params.id,
       {
-      name: req.body.name,
-      description: req.body.description,
-      images: req.body.images,
-      brand: req.body.brand,
-      price: req.body.price,
-      oldPrice: req.body.oldPrice,
-      catName: req.body.catName,
-      catId: req.body.catId,
-      subCatId: req.body.subCatId,
-      subCat: req.body.subCat,
-      thirdsubCat: req.body.thirdsubCat,
-      thirdsubCatId: req.body.thirdsubCatId,
-      category: req.body.category,
-      countInStock: req.body.countInStock,
-      rating: req.body.rating,
-      isFeatured: req.body.isFeatured,
-      discount: req.body.discount,
-      productRam: req.body.productRam,
-      size: req.body.size,
-      productWeight: req.body.productWeight,
-    },{
-      new: true
-    });
+        name: req.body.name,
+        description: req.body.description,
+        images: req.body.images,
+        bannerImages: req.body.bannerImages,
+        bannerTitleName: req.body.bannerTitleName,
+        isDisplayOnHomeBanner: req.body.isDisplayOnHomeBanner,
+        brand: req.body.brand,
+        price: req.body.price,
+        oldPrice: req.body.oldPrice,
+        catName: req.body.catName,
+        catId: req.body.catId,
+        subCatId: req.body.subCatId,
+        subCat: req.body.subCat,
+        thirdsubCat: req.body.thirdsubCat,
+        thirdsubCatId: req.body.thirdsubCatId,
+        category: req.body.category,
+        countInStock: req.body.countInStock,
+        rating: req.body.rating,
+        isFeatured: req.body.isFeatured,
+        discount: req.body.discount,
+        productRam: req.body.productRam,
+        size: req.body.size,
+        productWeight: req.body.productWeight,
+      },
+      {
+        new: true,
+      },
+    );
 
     if (!product) {
       return res.status(404).json({
@@ -759,10 +858,454 @@ export async function updateProduct(req, res) {
       success: true,
       error: false,
     });
-
   } catch (error) {
     return res.status(500).json({
       message: error.message,
+      success: false,
+      error: true,
+    });
+  }
+}
+
+// Create New ProductRAMS
+export async function createProductRAMS(req, res) {
+  try {
+    let productRAMS = new ProductRAMSModel({
+      name: req.body.name,
+    });
+    productRAMS = await productRAMS.save();
+
+    if (!productRAMS) {
+      return res.status(404).json({
+        message: "ProductRAMS not Created",
+        success: false,
+        error: true,
+      });
+    }
+
+    return res.status(200).json({
+      message: "ProductRAMS Created successfully!",
+      success: true,
+      error: false,
+      product: productRAMS,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: error.message || error,
+      success: false,
+      error: true,
+    });
+  }
+}
+
+//delete single ProductRAMS
+export async function deleteProductRAMS(req, res) {
+  const productRAMS = await ProductRAMSModel.findById(req.params.id);
+
+  if (!productRAMS) {
+    return res.status(404).json({
+      message: "Item not found",
+      success: false,
+      error: true,
+    });
+  }
+
+  const deleteProductRAMS = await ProductRAMSModel.findByIdAndDelete(
+    req.params.id,
+  );
+
+  if (!deleteProductRAMS) {
+    return res.status(404).json({
+      message: "items not deleted!",
+      success: false,
+      error: true,
+    });
+  }
+
+  return res.status(200).json({
+    message: "Product RAMS deleted!",
+    success: true,
+    error: false,
+  });
+}
+
+//Update productRAM
+export async function updateProductRAMS(req, res) {
+  try {
+    const productRAM = await ProductRAMSModel.findByIdAndUpdate(
+      req.params.id,
+      {
+        name: req.body.name,
+      },
+      { new: true },
+    );
+
+    if (!productRAM) {
+      return res.status(404).json({
+        message: "ProductRAM can not be updated!",
+        success: false,
+        error: true,
+      });
+    }
+
+    return res.status(200).json({
+      message: "ProductRAM updated successfully!",
+      success: true,
+      error: false,
+      data: productRAM,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: error.message || error,
+      success: false,
+      error: true,
+    });
+  }
+}
+
+//Get all productRAMS
+export async function getProductRAMS(req, res) {
+  try {
+    const productRAM = await ProductRAMSModel.find();
+    if (!productRAM) {
+      return res.status(404).json({
+        message: "ProductRAM can not be get!",
+        success: false,
+        error: true,
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      error: false,
+      data: productRAM,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: error.message || error,
+      success: false,
+      error: true,
+    });
+  }
+}
+
+//Get Single RAMS
+export async function getProductRAMSById(req, res) {
+  try {
+    const productRAM = await ProductRAMSModel.findById(req.params.id);
+    if (!productRAM) {
+      return res.status(404).json({
+        message: "ProductRAMS can not be get!",
+        success: false,
+        error: true,
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      error: false,
+      data: productRAM,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: error.message,
+      success: false,
+      error: true,
+    });
+  }
+}
+
+// Create New ProductWeight
+export async function createProductWeight(req, res) {
+  try {
+    let productWeight = new ProductWeightModel({
+      name: req.body.name,
+    });
+
+    productWeight = await productWeight.save();
+
+    if (!productWeight) {
+      return res.status(404).json({
+        message: "ProductWeight is not Created",
+        success: false,
+        error: true,
+      });
+    }
+
+    return res.status(200).json({
+      message: "ProductWeight Created successfully!",
+      success: true,
+      error: false,
+      product: productWeight,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: error.message || error,
+      success: false,
+      error: true,
+    });
+  }
+}
+
+//delete single ProductWeight
+export async function deleteProductWeight(req, res) {
+  const productWeight = await ProductWeightModel.findById(req.params.id);
+
+  if (!productWeight) {
+    return res.status(404).json({
+      message: "No item found",
+      success: false,
+      error: true,
+    });
+  }
+
+  const deleteProductWeight = await ProductWeightModel.findByIdAndDelete(
+    req.params.id,
+  );
+
+  if (!deleteProductWeight) {
+    return res.status(404).json({
+      message: "items not deleted!",
+      success: false,
+      error: true,
+    });
+  }
+
+  return res.status(200).json({
+    message: "Product Weight deleted successfully!",
+    success: true,
+    error: false,
+  });
+}
+
+//Update productWeight
+export async function updateProductWeight(req, res) {
+  try {
+    const productWeight = await ProductWeightModel.findByIdAndUpdate(
+      req.params.id,
+      {
+        name: req.body.name,
+      },
+      { new: true },
+    );
+
+    if (!productWeight) {
+      return res.status(404).json({
+        message: "The productWeight can not be updated!",
+        success: false,
+        error: true,
+      });
+    }
+
+    return res.status(200).json({
+      message: "The productWeight is updated successfully!",
+      success: true,
+      error: false,
+      data: productWeight,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: error.message || error,
+      success: false,
+      error: true,
+    });
+  }
+}
+
+//Get all productWeight
+export async function getProductWeight(req, res) {
+  try {
+    const productWeight = await ProductWeightModel.find();
+    if (!productWeight) {
+      return res.status(404).json({
+        message: "The productWeight can not be get!",
+        success: false,
+        error: true,
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      error: false,
+      data: productWeight,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: error.message,
+      success: false,
+      error: true,
+    });
+  }
+}
+
+//Get Single  Weight
+export async function getProductWeightById(req, res) {
+  try {
+    const productWeight = await ProductWeightModel.findById(req.params.id);
+    if (!productWeight) {
+      return res.status(404).json({
+        message: "The productWeight can not be get!",
+        success: false,
+        error: true,
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      error: false,
+      data: productWeight,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: error.message,
+      success: false,
+      error: true,
+    });
+  }
+}
+
+// Create New ProductSize
+export async function createProductSize(req, res) {
+  try {
+    let productSize = new ProductSizeModel({
+      name: req.body.name,
+    });
+    productSize = await productSize.save();
+
+    if (!productSize) {
+      return res.status(404).json({
+        message: "The product size is not Created",
+        success: false,
+        error: true,
+      });
+    }
+
+    return res.status(200).json({
+      message: "The productSize is Created successfully!",
+      success: true,
+      error: false,
+      product: productSize,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: error.message || error,
+      success: false,
+      error: true,
+    });
+  }
+}
+
+//delete single ProductSize
+export async function deleteProductSize(req, res) {
+  const productSize = await ProductSizeModel.findById(req.params.id);
+
+  if (!productSize) {
+    return res.status(404).json({
+      message: "No item found",
+      success: false,
+      error: true,
+    });
+  }
+
+  const deleteProductSize = await ProductSizeModel.findByIdAndDelete(
+    req.params.id,
+  );
+
+  if (!deleteProductSize) {
+    return res.status(404).json({
+      message: "Items not deleted!",
+      success: false,
+      error: true,
+    });
+  }
+
+  return res.status(200).json({
+    message: "Product Size deleted successfully!",
+    success: true,
+    error: false,
+  });
+}
+
+//Update productSize
+export async function updateProductsize(req, res) {
+  try {
+    const productSize = await ProductSizeModel.findByIdAndUpdate(
+      req.params.id,
+      {
+        name: req.body.name,
+      },
+      { new: true },
+    );
+
+    if (!productSize) {
+      return res.status(404).json({
+        message: "The productSize can not be updated!",
+        success: false,
+        error: true,
+      });
+    }
+
+    return res.status(200).json({
+      message: "productSize updated successfully!",
+      success: true,
+      error: false,
+      data: productSize,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: error.message || error,
+      success: false,
+      error: true,
+    });
+  }
+}
+
+//Get all productSize
+export async function getProductSize(req, res) {
+  try {
+    const productSize = await ProductSizeModel.find();
+    if (!productSize) {
+      return res.status(404).json({
+        message: "The productSize can't be get!",
+        success: false,
+        error: true,
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      error: false,
+      data: productSize,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: error.message,
+      success: false,
+      error: true,
+    });
+  }
+}
+
+//Get Single Size
+export async function getProductSizeById(req, res) {
+  try {
+    const productSize = await ProductSizeModel.findById(req.params.id);
+    if (!productSize) {
+      return res.status(404).json({
+        message: "The productSize can't be get!",
+        success: false,
+        error: true,
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      error: false,
+      data: productSize,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: error.message || error,
       success: false,
       error: true,
     });
