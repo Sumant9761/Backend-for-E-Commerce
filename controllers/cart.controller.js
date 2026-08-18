@@ -1,10 +1,24 @@
 import CartProductModel from "../models/cart.modal.js";
-import Usermodel from "../models/user.model.js";
 
 export async function addToCartItemController(req, res) {
   try {
     const userId = req.userId;
-    const { productId } = req.body;
+    const {
+      productTitle,
+      image,
+      rating,
+      price,
+      quantity,
+      subTotal,
+      productId,
+      countInStock,
+      brand,
+      size,
+      weight,
+      ram,
+      oldPrice,
+      discount,
+    } = req.body;
 
     if (!productId) {
       return res.status(402).json({
@@ -26,30 +40,33 @@ export async function addToCartItemController(req, res) {
     }
 
     const cartItem = new CartProductModel({
-      quantity: 1,
+      productTitle,
+      image,
+      rating,
+      price,
+      quantity,
+      subTotal,
       productId,
+      countInStock,
       userId,
+      brand,
+      size,
+      weight,
+      ram,
+      oldPrice,
+      discount,
     });
 
     const save = await cartItem.save();
 
-    const updateCartUser = await Usermodel.updateOne(
-      { _id: userId },
-      {
-        $push: {
-          shopping_cart: productId,
-        },
-      },
-    );
-
     return res.status(200).json({
       data: save,
-      message: "Item add successfully",
+      message: "Item added successfully",
       success: true,
       error: false,
     });
   } catch (error) {
-    return response.status(500).json({
+    return res.status(500).json({
       message: error.message || error,
       success: false,
       error: true,
@@ -61,9 +78,7 @@ export async function getCartItemController(req, res) {
   try {
     const userId = req.userId;
 
-    const cartItems = await CartProductModel.find({ userId }).populate(
-      "productId",
-    );
+    const cartItems = await CartProductModel.find({ userId });
 
     return res.json({
       data: cartItems,
@@ -82,22 +97,30 @@ export async function getCartItemController(req, res) {
 export async function updateCartItemQtyController(req, res) {
   try {
     const userId = req.userId;
-    const { _id, qty } = req.body;
+    const { _id, qty, subTotal, size, weight, ram } = req.body;
 
-    if (!_id || !qty) {
+    if (!_id) {
       return res.status(400).json({
-        message: "Provide _id and qty",
+        message: "Provide _id",
       });
     }
+
+    // Build update object dynamically
+    const updateFields = {};
+
+    if (qty !== undefined) updateFields.quantity = qty;
+    if (subTotal !== undefined) updateFields.subTotal = subTotal;
+    if (size !== undefined) updateFields.size = size;
+    if (weight !== undefined) updateFields.weight = weight;
+    if (ram !== undefined) updateFields.ram = ram;
 
     const updateCartItem = await CartProductModel.updateOne(
       {
         _id: _id,
         userId: userId,
       },
-      {
-        quantity: qty,
-      }
+      updateFields,
+      { new: true },
     );
 
     return res.json({
@@ -115,13 +138,12 @@ export async function updateCartItemQtyController(req, res) {
   }
 }
 
-
 export async function deleteCartItemQtyController(req, res) {
   try {
     const userId = req.userId;
-    const { _id, productId } = req.body;
+    const { id } = req.params;
 
-    if (!_id) {
+    if (!id) {
       return res.status(400).json({
         message: "Provide _id",
         error: true,
@@ -130,7 +152,7 @@ export async function deleteCartItemQtyController(req, res) {
     }
 
     const deleteCartItem = await CartProductModel.deleteOne({
-      _id: _id,
+      _id: id,
       userId: userId,
     });
 
@@ -141,16 +163,6 @@ export async function deleteCartItemQtyController(req, res) {
         success: false,
       });
     }
-
-    const user = await Usermodel.findOne({ _id: userId });
-
-    const cartItems = user.shopping_cart;
-
-    const updatedUserCart = [...cartItems.slice(0, cartItems.indexOf(productId)), ...
-        cartItems.slice(cartItems.indexOf(productId) + 1)];
-
-    user.shopping_cart = updatedUserCart;
-    await user.save();
 
     return res.status(200).json({
       message: "Item remove",
@@ -167,3 +179,22 @@ export async function deleteCartItemQtyController(req, res) {
   }
 }
 
+export async function emptyCartController(req, res){
+  try {
+    const userId = req.params.id  
+
+    await CartProductModel.deleteMany({userId : userId})
+
+   return res.status(200).json({
+      success: true,
+      error: false,
+    });
+    
+  } catch (error) {
+    return res.status(500).json({
+      message: error.message || error,
+      success: false,
+      error: true,
+    });
+  }
+}

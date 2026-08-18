@@ -127,18 +127,13 @@ export async function getCategories(req, res) {
 //Get categories count
 export async function getcategoriesCount(req, res) {
   try {
-    const categoriesCount = await CategoryModel.countDocuments({ parentId: undefined });
+    const categoriesCount = await CategoryModel.countDocuments({ parentId: null });
 
-    if (!categoriesCount) {
-      return res.status(500).json({
-        error: true,
-        success: false,
-      });
-    } else {
-      res.send({
-        CategoryCount: categoriesCount,
-      });
-    }
+    return res.status(200).json({
+      success: true,
+      error: false,
+      CategoryCount: categoriesCount || 0,
+    });
   } catch (error) {
     return res.status(500).json({
       message: error.message || error,

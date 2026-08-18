@@ -1,4 +1,5 @@
 import Usermodel from "../models/user.model.js";
+import ReviewModel from "../models/reviews.model.js";
 import bcryptjs from "bcryptjs";
 import jwt from "jsonwebtoken";
 import sendEmailFun from "../config/sendEmail.js";
@@ -8,6 +9,7 @@ import generatedRefreshToken from "../utils/generatedRefreshToken.js";
 
 import { v2 as cloudinary } from "cloudinary";
 import fs from "fs";
+import { isErrored } from "stream";
 
 cloudinary.config({
   cloud_name: process.env.cloudinary_Config_Cloud_Name,
@@ -72,7 +74,7 @@ export async function registerUserController(req, res) {
         "User registered successfully. Please check your email for verification.",
       error: false,
       success: true,
-      token, // Optional: You can include the token in the response if needed for further actions
+      token, // Optional: You can include the token in the res if needed for further actions
     });
   } catch (error) {
     return res.status(500).json({
@@ -130,6 +132,83 @@ export async function verifyEmailController(req, res) {
         message: "Provide all the required fields",
         error: true,
         success: false,
+      });
+    }
+  } catch (error) {
+    return res.status(500).json({
+      message: error.message || error,
+      error: true,
+      success: false,
+    });
+  }
+}
+
+export async function authWithGoogle(req, res) {
+  const { name, email, password, avatar, mobile, role } = req.body;
+  try {
+    const existingUser = await Usermodel.findOne({ email: email });
+    if (!existingUser) {
+      const user = await Usermodel.create({
+        name: name,
+        mobile: mobile,
+        email: email,
+        password: "null",
+        avatar: avatar,
+        role: role,
+        verify_email: true,
+        signUpWithGoogle: true,
+      });
+
+      await user.save();
+
+      const accessToken = await generatedAccessToken(user._id);
+      const refreshToken = await generatedRefreshToken(user._id);
+
+      await Usermodel.findByIdAndUpdate(user?._id, {
+        last_login_date: new Date(),
+      });
+
+      const cookiesOption = {
+        httpOnly: true,
+        secure: true,
+        sameSite: "None",
+      };
+      res.cookie("accessToken", accessToken, cookiesOption);
+      res.cookie("refreshToken", refreshToken, cookiesOption);
+
+      return res.json({
+        message: "Login successfully",
+        error: false,
+        success: true,
+        data: {
+          accessToken,
+          refreshToken,
+        },
+      });
+    } else {
+      const accessToken = await generatedAccessToken(existingUser._id);
+      const refreshToken = await generatedRefreshToken(existingUser._id);
+
+      await Usermodel.findByIdAndUpdate(existingUser?._id, {
+        last_login_date: new Date(),
+      });
+
+      const cookiesOption = {
+        httpOnly: true,
+        secure: true,
+        sameSite: "None",
+      };
+      res.cookie("accessToken", accessToken, cookiesOption);
+      res.cookie("refreshToken", refreshToken, cookiesOption);
+
+      return res.json({
+        message: "Login successfully",
+        error: false,
+        success: true,
+        data: {
+          accessToken,
+          refreshToken,
+        },
       });
     }
   } catch (error) {
@@ -338,22 +417,8 @@ export async function updateUserDetails(req, res) {
     const { name, email, mobile, password } = req.body;
 
     const userExist = await Usermodel.findById(userId);
+
     if (!userExist) return res.status(400).send("The user cannot be updated!");
-
-    let verifyCode = "";
-
-    if (email !== userExist.email) {
-      verifyCode = Math.floor(100000 + Math.random() * 900000).toString();
-    }
-
-    let hashPassword = "";
-
-    if (password) {
-      const salt = await bcryptjs.genSalt(10);
-      hashPassword = await bcryptjs.hash(password, salt);
-    } else {
-      hashPassword = userExist.password;
-    }
 
     const updateUser = await Usermodel.findByIdAndUpdate(
       userId,
@@ -361,10 +426,6 @@ export async function updateUserDetails(req, res) {
         name,
         mobile,
         email,
-        verify_email: email !== userExist.email ? false : true,
-        password: hashPassword,
-        otp: verifyCode !== "" ? verifyCode : null,
-        otpExpires: verifyCode !== "" ? Date.now() + 600000 : "",
       },
       { new: true },
     );
@@ -626,7 +687,7 @@ export async function userDetails(req, res) {
     const user = await Usermodel.findById(userId)
       .select("-password -refresh_token")
       .populate("address_details");
-  
+
     return res.json({
       message: "User details",
       data: user,
@@ -641,3 +702,145 @@ export async function userDetails(req, res) {
     });
   }
 }
+
+//Review controller
+export async function addReview(req, res) {
+  try {
+    const { userName, review, image, rating, userId, productId } = req.body;
+
+    const userReview = new ReviewModel({
+      image: image,
+      userName: userName,
+      review: review,
+      rating: rating,
+      userId: userId,
+      productId: productId,
+    });
+
+    await userReview.save();
+
+    return res.json({
+      message: "Review added successfully",
+      error: false,
+      success: true,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: error.message || error,
+      error: true,
+      success: false,
+    });
+  }
+}
+
+export async function getReview(req, res) {
+  try {
+    const productId = req.query.productId;
+
+    const reviews = await ReviewModel.find({ productId });
+    console.log(reviews);
+
+    if (!reviews) {
+      return res.status(400).json({
+        message: "Review not found",
+        error: true,
+        success: false,
+      });
+    }
+
+    return res.status(200).json({
+      error: false,
+      success: true,
+      reviews: reviews,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: error.message || error,
+      error: true,
+      success: false,
+    });
+  }
+}
+
+//  GET ALL reviews
+export async function getAllReviews(req, res) {
+  try {
+    const reviews = await ReviewModel.find();
+
+    if (!reviews) {
+      return res.status(403).json({
+        error: true,
+        success: false,
+      });
+    }
+
+    return res.status(200).json({
+      error: false,
+      success: true,
+      reviews: reviews,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: error.message || error,
+      success: false,
+      error: true,
+    });
+  }
+}
+
+//  GET ALL USERS
+export async function getAllUsers(req, res) {
+  try {
+    const users = await Usermodel.find();
+
+    if (!users) {
+      return res.status(403).json({
+        error: true,
+        success: false,
+      });
+    }
+
+    return res.status(200).json({
+      error: false,
+      success: true,
+      users: users,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: error.message || error,
+      success: false,
+      error: true,
+    });
+  }
+}
+
+
+//  DELETE MULTIPLE USERS - New API
+export async function deleteMultipleUsers(req, res) {
+  try {
+    const { ids } = req.body;
+
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({
+        message: "Please provide valid user IDs",
+        error: true,
+        success: false,
+      });
+    }
+
+    await Usermodel.deleteMany({ _id: { $in: ids } });
+
+    return res.status(200).json({
+      message: "Users deleted successfully",
+      error: false,
+      success: true,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: error.message || error,
+      error: true,
+      success: false,
+    });
+  }
+}
+

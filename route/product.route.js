@@ -34,6 +34,9 @@ import {
   getProductSize,
   getProductSizeById,
   uploadBannerImages,
+  filterProducts,
+  sortBy,
+  searchProductController,
 } from "../controllers/product.controller.js";
 import auth from "../middlewares/auth.js";
 import upload from "../middlewares/multer.js";
@@ -86,5 +89,11 @@ productRouter.delete("/productSize/:id", deleteProductSize);
 productRouter.put("/updateProductSize/:id", auth, updateProductsize);
 productRouter.get("/productSize/get", getProductSize);
 productRouter.get("/productSize/:id", getProductSizeById);
+
+// Product filters
+productRouter.post("/filters", filterProducts);
+productRouter.post("/sortBy", sortBy);
+productRouter.post("/search", searchProductController);
+productRouter.get("/search", searchProductController);
 
 export default productRouter;

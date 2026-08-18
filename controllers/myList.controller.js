@@ -77,7 +77,7 @@ export async function deleteToMyListController(req, res) {
     return res.status(200).json({
       success: true,
       error: false,
-      message: "The item remove in the List",
+      message: "Item removed from My List",
     });
   } catch (error) {
     return res.status(500).json({

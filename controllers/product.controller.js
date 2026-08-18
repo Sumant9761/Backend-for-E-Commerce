@@ -608,18 +608,10 @@ export async function getProductsCount(req, res) {
   try {
     const productsCount = await ProductModel.countDocuments();
 
-    if (!productsCount) {
-      return res.status(500).json({
-        message: error.message,
-        success: false,
-        error: true,
-      });
-    }
-
     return res.status(200).json({
       success: true,
       error: false,
-      productsCount: productsCount,
+      productsCount: productsCount || 0,
     });
   } catch (error) {
     return res.status(500).json({
@@ -1302,6 +1294,142 @@ export async function getProductSizeById(req, res) {
       success: true,
       error: false,
       data: productSize,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: error.message || error,
+      success: false,
+      error: true,
+    });
+  }
+}
+
+//filter product
+export async function filterProducts(req, res) {
+  try {
+    const {
+      catId,
+      subCatId,
+      thirdsubCatId,
+      minPrice,
+      maxPrice,
+      rating,
+      page,
+      limit,
+    } = req.body;
+
+    const filters = {};
+
+    // ONLY add catId filter if array has items
+    if (catId?.length) {
+      filters.catId = { $in: catId };
+    }
+
+    if (subCatId?.length) {
+      filters.subCatId = { $in: subCatId };
+    }
+
+    if (thirdsubCatId?.length) {
+      filters.thirdsubCatId = { $in: thirdsubCatId };
+    }
+
+    if (minPrice || maxPrice) {
+      filters.price = { $gte: +minPrice || 0, $lte: +maxPrice || Infinity };
+    }
+
+    if (rating?.length) {
+      filters.rating = { $in: rating };
+    }
+
+    const products = await ProductModel.find(filters)
+      .populate("category")
+      .skip((page - 1) * limit)
+      .limit(parseInt(limit));
+
+    const total = await ProductModel.countDocuments(filters);
+
+    return res.status(200).json({
+      success: true,
+      error: false,
+      message: "Products filtered successfully",
+      products: products,
+      total: total,
+      page: parseInt(page),
+      totalPages: Math.ceil(total / limit),
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: error.message || error,
+      success: false,
+      error: true,
+    });
+  }
+}
+
+//sortItems
+const sortItems = (products, sortBy, order) => {
+  return products.sort((a, b) => {
+    if (sortBy === "name") {
+      return order === "asc"
+        ? a.name.localeCompare(b.name)
+        : b.name.localeCompare(a.name);
+    }
+
+    if (sortBy === "price") {
+      return order === "asc" ? a.price - b.price : b.price - a.price;
+    }
+    return 0;
+  });
+};
+
+export async function sortBy(req, res) {
+  const { products, sortBy, order } = req.body;
+  const sortedItems = sortItems([...products?.products], sortBy, order);
+
+  return res.status(200).json({
+    error: false,
+    success: true,
+    products: sortedItems,
+    totalPages: 0,
+    page: 0,
+  });
+}
+
+
+// Search products controller
+export async function searchProductController(req, res) {
+  try {
+    const query = req.body?.query || req.body?.q || req.query?.query || req.query?.q || "";
+
+    if (!query || query.trim() === "") {
+      return res.status(200).json({
+        success: true,
+        error: false,
+        products: [],
+        total: 0,
+      });
+    }
+
+    // Escape special regex characters
+    const safeQuery = query.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const searchRegex = new RegExp(safeQuery, "i");
+
+    const products = await ProductModel.find({
+      $or: [
+        { name: searchRegex },
+        { brand: searchRegex },
+        { catName: searchRegex },
+        { subCat: searchRegex },
+        { thirdsubCat: searchRegex },
+        { description: searchRegex },
+      ],
+    }).populate("category");
+
+    return res.status(200).json({
+      success: true,
+      error: false,
+      products: products,
+      total: products.length,
     });
   } catch (error) {
     return res.status(500).json({

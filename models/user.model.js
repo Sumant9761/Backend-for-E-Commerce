@@ -29,11 +29,11 @@ const userSchema = new mongoose.Schema(
     },
     access_token: {
       type: String,
-      default: ""
+      default: "",
     },
     refresh_token: {
       type: String,
-      default: ""
+      default: "",
     },
     last_login_date: {
       type: Date,
@@ -63,15 +63,19 @@ const userSchema = new mongoose.Schema(
       },
     ],
     otp: {
-      type: String
+      type: String,
     },
     otpExpires: {
-      type: Date
+      type: Date,
     },
     role: {
       type: String,
       enum: ["USER", "ADMIN"],
       default: "USER",
+    },
+    signUpWithGoogle: {
+      type: Boolean,
+      default: false,
     },
   },
   {

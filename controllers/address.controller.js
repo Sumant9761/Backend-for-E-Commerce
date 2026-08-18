@@ -3,11 +3,29 @@ import UserModel from "../models/user.model.js";
 
 export async function addAddressController(req, res) {
   try {
-    const { address_line1, city, state, pincode, country, mobile } = req.body;
+    const {
+      address_line1,
+      city,
+      state,
+      pincode,
+      country,
+      mobile,
+      landmark,
+      addressType,
+    } = req.body;
 
     const userId = req.userId;
 
-    if (!address_line1 || !city || !state || !pincode || !country || !mobile) {
+    if (
+      !address_line1 ||
+      !city ||
+      !state ||
+      !pincode ||
+      !country ||
+      !mobile ||
+      !landmark ||
+      !addressType
+    ) {
       return res.status(400).json({
         message: "All fields are required",
         error: true,
@@ -22,6 +40,8 @@ export async function addAddressController(req, res) {
       pincode,
       country,
       mobile,
+      landmark,
+      addressType,
       userId,
     });
 
@@ -84,7 +104,7 @@ export async function getAddressController(req, res) {
 export async function deleteAddressController(req, res) {
   try {
     const userId = req.userId;
-    const _id = req.params.addressId; 
+    const _id = req.params.addressId;
 
     if (!_id) {
       return res.status(400).json({
@@ -99,11 +119,11 @@ export async function deleteAddressController(req, res) {
       userId: userId,
     });
 
-    if (deleteItem.deletedCount === 0) {  
-      return res.status(400).json({ 
-        message: "Address not found", 
+    if (deleteItem.deletedCount === 0) {
+      return res.status(400).json({
+        message: "Address not found",
         error: true,
-        success: false 
+        success: false,
       });
     }
 
@@ -118,6 +138,86 @@ export async function deleteAddressController(req, res) {
       message: error.message,
       success: false,
       error: true,
+    });
+  }
+}
+
+export async function getSingleAddressController(req, res) {
+  try {
+    const id = req.params.id;
+    const address = await AddressModel.findOne({ _id: id });
+
+    if (!address) {
+      return res.status(404).json({
+        message: "Address not found",
+        success: false,
+        error: true,
+      });
+    }
+    return res.status(200).json({
+      message: "Address fetched successfully",
+      address: address,
+      success: true,
+      error: false,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: error.message,
+      success: false,
+      error: true,
+    });
+  }
+}
+
+export async function editAddress(req, res) {
+  try {
+    const addressId = req.params.id;
+
+    if (!addressId) {
+      return res.status(400).json({
+        message: "Address ID is required",
+        error: true,
+        success: false,
+      });
+    }
+
+    const {
+      address_line1,
+      city,
+      state,
+      pincode,
+      country,
+      mobile,
+      landmark,
+      addressType,
+    } = req.body;
+
+    const address = await AddressModel.findByIdAndUpdate(
+      addressId,
+      {
+        address_line1,
+        city,
+        state,
+        pincode,
+        country,
+        mobile,
+        landmark,
+        addressType,
+      },
+      { new: true },
+    );
+
+    return res.status(200).json({
+      message: "Address Updated successfully",
+      error: false,
+      success: true,
+      address: address,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: error.message || error,
+      error: true,
+      success: false,
     });
   }
 }
